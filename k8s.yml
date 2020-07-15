@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fat
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fat
+  namespace: fat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: fat
+  name: pod-editor
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "delete"] 
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"] 
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: edit-pods
+  namespace: fat
+subjects:
+- kind: ServiceAccount
+  name: fat
+  namespace: fat
+roleRef:
+  kind: Role
+  name: pod-editor
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fat-server
+  namespace: fat
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: fat-server
+      labels:
+        app: fat-server
+    spec:
+      serviceAccountName: fat
+      containers:
+      - name: fat-server
+        image: fat:foo
+        ports:
+          - containerPort: 5000
+            name: http
+            protocol: TCP
+      restartPolicy: Always
+  selector:
+    matchLabels:
+      app: fat-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fat-server
+  namespace: fat
+spec:
+  ports:
+  - port: 80
+    targetPort: 5000
+    name: http
+  selector:
+    app: fat-server
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1200"
+  name: fat-server
+  namespace: fat
+spec:
+  rules:
+  - host: fat.localhost
+    http:
+      paths:
+      - backend:
+          serviceName: fat-server
+          servicePort: 80
