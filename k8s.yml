@@ -75,7 +75,7 @@ spec:
   selector:
     app: fat-server
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
@@ -88,5 +88,8 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: fat-server
-          servicePort: 80
+          service:
+            name: fat-server
+            port:
+              number: 80
+        pathType: ImplementationSpecific
